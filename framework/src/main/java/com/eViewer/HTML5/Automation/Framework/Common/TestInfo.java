@@ -1,0 +1,31 @@
+package com.eViewer.HTML5.Automation.Framework.Common;
+
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Repeatable;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+
+@Retention(value = RetentionPolicy.RUNTIME)
+@Target(value = { ElementType.METHOD })
+
+
+public @interface TestInfo {
+
+	public enum Priority {
+		LOW, MEDIUM, HIGH
+	}
+	
+	public enum Client {
+		Deloitte
+	}
+	
+	int bugzillaID() default 0;
+
+	Priority priority() default Priority.LOW;
+
+	String description() default "";
+	
+	Client clientName() default Client.Deloitte; 
+
+}

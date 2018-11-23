@@ -1,0 +1,59 @@
+package com.eViewer.HTML5.Automation.Framework.WebDriverHelper;
+
+import java.util.List;
+
+import org.openqa.selenium.NoSuchElementException;
+import org.openqa.selenium.WebElement;
+
+public class CustomLocator {
+	WebElement foundElement = null;
+
+	public WebElement getElement(List<WebElement> elements) {
+		elements.forEach((element) -> {
+			if (element.isDisplayed()) {
+				foundElement = element;
+			}
+		});
+
+		if (foundElement == null) {
+			throw new NoSuchElementException(
+					"getElement: element not found in the list ");
+		}
+
+		return foundElement;
+	}
+
+	public WebElement getElementByValue(List<WebElement> elements,
+			String attribute, String value) {
+		elements.forEach((element) -> {
+			if (element.getAttribute(attribute).equals(value)) {
+				foundElement = element;
+			}
+		});
+
+		if (foundElement == null) {
+
+			throw new NoSuchElementException(
+					"getElementByValue: element with attribute ["
+							+ attribute.toUpperCase() + "] and value [" + value
+							+ "] is not found in the list");
+		}
+		return foundElement;
+	}
+
+	public WebElement getElementByText(List<WebElement> elements, String text) {
+		elements.forEach((element) -> {
+			if (element.getText().equalsIgnoreCase(text)) {
+				foundElement = element;
+			}
+		});
+
+		if (foundElement == null) {
+			throw new NoSuchElementException(
+					"getElementByText: element with text [" + text
+							+ "] is not found in the list");
+		}
+		return foundElement;
+	}
+	
+}

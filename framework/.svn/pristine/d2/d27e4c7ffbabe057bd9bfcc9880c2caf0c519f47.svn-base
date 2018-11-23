@@ -1,0 +1,30 @@
+package com.eViewer.HTML5.Automation.Framework.Utils;
+
+import java.io.InputStream;
+
+import org.apache.commons.io.IOUtils;
+
+import com.eViewer.HTML5.Automation.Framework.Common.CustomLogger;
+
+public class Launcher {
+
+	public String runApplication(String[] args) {
+		String consoleText = "";
+		try {
+			ProcessBuilder processbuilder = new ProcessBuilder(args);
+			processbuilder.redirectErrorStream(true);
+			Process process = processbuilder.start();
+
+			InputStream stream = process.getInputStream();
+			consoleText = IOUtils.toString(stream, "UTF-8");
+			CustomLogger.logInfo(
+					"runApplication: console output is [" + consoleText + "]");
+			process.destroy();
+			IOUtils.closeQuietly(stream);
+		} catch (Exception e) {
+			CustomLogger.logError("runApplication: " + e.getMessage());
+		}
+		return consoleText;
+	}
+
+}

@@ -1,0 +1,66 @@
+package com.eViewer.HTML5.Automation.Framework.WebDriverHelper;
+
+import org.openqa.selenium.JavascriptExecutor;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.support.ui.WebDriverWait;
+
+import com.eViewer.HTML5.Automation.Framework.Common.CustomLogger;
+import com.google.common.base.Function;
+
+public class JavascriptActions {
+
+	private JavascriptExecutor js;
+	private WebDriver driver;
+
+	public JavascriptActions(WebDriver driver) {
+		js = (JavascriptExecutor) driver;
+		this.driver = driver;
+	}
+
+	public String execute(String script) {
+		Object value = null;
+		try {
+			waitForJavascriptToLoad();
+			value = js.executeScript("return " + script);
+		} catch (Exception e) {
+			CustomLogger.logError("execute: " + e.getMessage());
+		}
+		return value.toString();
+	}
+
+	public String executeASyncScript(String script) {
+		Object value = null;
+		try {
+			waitForJavascriptToLoad();
+			value = js.executeAsyncScript(script);
+		} catch (Exception e) {
+			CustomLogger.logError("executeASyncScript: " + e.getMessage());
+		}
+		return value.toString();
+	}
+
+	public String getWindowErrors() {
+		return js.executeScript("return window.errors || ''").toString();
+	}
+
+	private boolean waitForJavascriptToLoad() {
+		WebDriverWait wait = new WebDriverWait(driver, 10);
+
+		// wait for jQuery to load
+		Function<WebDriver, Boolean> jQueryLoad = (WebDriver b) -> {
+			try {
+				return ((Long) js.executeScript("return jQuery.active") == 0);
+			} catch (Exception e) {
+				return true;
+			}
+		};
+
+		// wait for JS to load
+		Function<WebDriver, Boolean> jsLoad = (WebDriver b) -> {
+			return js.executeScript("return document.readyState").toString()
+					.equals("complete");
+		};
+		return wait.until(jQueryLoad) && wait.until(jsLoad);
+	}
+
+}

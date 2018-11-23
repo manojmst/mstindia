@@ -1,0 +1,416 @@
+package com.eViewer.HTML5.Automation.Framework.Listeners;
+
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.PrintWriter;
+import java.io.StringReader;
+import java.io.StringWriter;
+import java.net.InetAddress;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Arrays;
+import java.util.Date;
+import java.util.List;
+
+import org.openqa.selenium.remote.RemoteWebDriver;
+import org.testng.ITestContext;
+import org.testng.ITestResult;
+import org.testng.TestListenerAdapter;
+
+import com.eViewer.HTML5.Automation.Framework.Common.CustomLogger;
+import com.eViewer.HTML5.Automation.Framework.Config.NewDriverProvider;
+import com.eViewer.HTML5.Automation.Framework.WebDriverHelper.ImageShooter;
+import com.itextpdf.text.BaseColor;
+import com.itextpdf.text.Chunk;
+import com.itextpdf.text.Document;
+import com.itextpdf.text.DocumentException;
+import com.itextpdf.text.Element;
+import com.itextpdf.text.Font;
+import com.itextpdf.text.Font.FontFamily;
+import com.itextpdf.text.FontFactory;
+import com.itextpdf.text.Paragraph;
+import com.itextpdf.text.Phrase;
+import com.itextpdf.text.pdf.PdfAction;
+import com.itextpdf.text.pdf.PdfPCell;
+import com.itextpdf.text.pdf.PdfPTable;
+import com.itextpdf.text.pdf.PdfWriter;
+
+public class PDFReporterListener extends TestListenerAdapter {
+
+	private final RemoteWebDriver remoteWebDriver;
+
+	private Document document = null;
+	private PdfPTable successTable = null, skipTable = null, failTable = null, systemInfoTable = null,
+			runStatusTable = null;
+	private Throwable throwable = null;
+
+	private final Font defaultFont = new Font(FontFamily.TIMES_ROMAN, Font.DEFAULTSIZE, Font.BOLD);
+	private final String REPORT_DIR = System.getProperty("user.dir") + File.separator + "results" + File.separator
+			+ "reports";
+	private final String SCREENSHOT_DIR = System.getProperty("user.dir") + File.separator + "results" + File.separator
+			+ "failures";
+
+	public PDFReporterListener() {
+		document = new Document();
+		remoteWebDriver = (RemoteWebDriver) NewDriverProvider.getWebDriver();
+	}
+
+	@Override
+	public void onTestSuccess(ITestResult result) {
+		if (successTable == null) {
+			successTable = new PdfPTable(new float[] { 8f, 8f, 2f });
+			successTable.setWidthPercentage(100);
+
+			PdfPCell cell = new PdfPCell(new Phrase("PASSED TESTS", defaultFont));
+			cell.setHorizontalAlignment(Element.ALIGN_CENTER);
+			cell.setBackgroundColor(BaseColor.GREEN);
+			cell.setColspan(3);
+			successTable.addCell(cell);
+
+			cell = new PdfPCell(new Paragraph("Class"));
+			cell.setBackgroundColor(BaseColor.LIGHT_GRAY);
+			successTable.addCell(cell);
+
+			cell = new PdfPCell(new Paragraph("Method"));
+			cell.setBackgroundColor(BaseColor.LIGHT_GRAY);
+			successTable.addCell(cell);
+
+			cell = new PdfPCell(new Paragraph("Time (s)"));
+			cell.setBackgroundColor(BaseColor.LIGHT_GRAY);
+			successTable.addCell(cell);
+		}
+
+		PdfPCell cell = new PdfPCell(new Paragraph(result.getTestClass().toString()));
+		successTable.addCell(cell);
+
+		cell = new PdfPCell(
+				new Paragraph(result.getMethod().getMethodName() + "\n" + addTestParameter(result).toString()));
+		successTable.addCell(cell);
+
+		cell = new PdfPCell(new Paragraph((result.getEndMillis() - result.getStartMillis()) / 1000 + ""));
+		successTable.addCell(cell);
+	}
+
+	@Override
+	public void onTestSkipped(ITestResult result) {
+		if (skipTable == null) {
+			skipTable = new PdfPTable(new float[] { 5f, 5f, 8f });
+			skipTable.setWidthPercentage(100);
+
+			PdfPCell cell = new PdfPCell(new Phrase("SKIPPED TESTS", defaultFont));
+			cell.setHorizontalAlignment(Element.ALIGN_CENTER);
+			cell.setBackgroundColor(BaseColor.YELLOW);
+			cell.setColspan(3);
+			skipTable.addCell(cell);
+
+			cell = new PdfPCell(new Paragraph("Class"));
+			cell.setBackgroundColor(BaseColor.LIGHT_GRAY);
+			skipTable.addCell(cell);
+
+			cell = new PdfPCell(new Paragraph("Method"));
+			cell.setBackgroundColor(BaseColor.LIGHT_GRAY);
+			skipTable.addCell(cell);
+
+			cell = new PdfPCell(new Paragraph("Cause"));
+			cell.setBackgroundColor(BaseColor.LIGHT_GRAY);
+			skipTable.addCell(cell);
+		}
+
+		PdfPCell cell = new PdfPCell(new Paragraph(result.getTestClass().toString()));
+		skipTable.addCell(cell);
+
+		cell = new PdfPCell(
+				new Paragraph(result.getMethod().getMethodName() + "\n" + addTestParameter(result).toString()));
+		skipTable.addCell(cell);
+
+		Throwable skipThrowable = result.getThrowable();
+
+		if (skipThrowable != null) {
+			cell = new PdfPCell(new Paragraph(skipThrowable.toString()));
+			skipTable.addCell(cell);
+		} else {
+			skipTable.addCell(new PdfPCell(new Paragraph("")));
+		}
+	}
+
+	@Override
+	public void onTestFailure(ITestResult result) {
+		String imagePath = SCREENSHOT_DIR + File.separator + result.getMethod().getMethodName() + "_" + getCurrentTime()
+				+ ".png";
+
+		ImageShooter failure = new ImageShooter(NewDriverProvider.getWebDriver());
+		failure.captureWebPage(imagePath);
+
+		if (failTable == null) {
+			failTable = new PdfPTable(new float[] { 6f, 5f, 2f, 5f });
+			failTable.setWidthPercentage(100);
+
+			PdfPCell cell = new PdfPCell(
+					new Phrase("FAILED TESTS", new Font(FontFamily.TIMES_ROMAN, Font.DEFAULTSIZE, Font.BOLD)));
+			cell.setHorizontalAlignment(Element.ALIGN_CENTER);
+			cell.setBackgroundColor(BaseColor.RED);
+			cell.setColspan(4);
+			failTable.addCell(cell);
+
+			cell = new PdfPCell(new Paragraph("Class"));
+			cell.setBackgroundColor(BaseColor.LIGHT_GRAY);
+			failTable.addCell(cell);
+
+			cell = new PdfPCell(new Paragraph("Method"));
+			cell.setBackgroundColor(BaseColor.LIGHT_GRAY);
+			failTable.addCell(cell);
+
+			cell = new PdfPCell(new Paragraph("Time (s)"));
+			cell.setBackgroundColor(BaseColor.LIGHT_GRAY);
+			failTable.addCell(cell);
+
+			cell = new PdfPCell(new Paragraph("Exception"));
+			cell.setBackgroundColor(BaseColor.LIGHT_GRAY);
+			failTable.addCell(cell);
+		}
+
+		PdfPCell cell = new PdfPCell(new Paragraph(result.getTestClass().toString()));
+		failTable.addCell(cell);
+
+		cell = new PdfPCell(
+				new Paragraph((result.getMethod().getMethodName() + "\n" + addTestParameter(result).toString())));
+		failTable.addCell(cell);
+
+		cell = new PdfPCell(new Paragraph((result.getEndMillis() - result.getStartMillis()) / 1000 + ""));
+		failTable.addCell(cell);
+
+		throwable = result.getThrowable();
+
+		if (throwable != null) {
+			Chunk screenshot = new Chunk("[SCREENSHOT] ",
+					new Font(FontFamily.TIMES_ROMAN, Font.DEFAULTSIZE, Font.UNDERLINE));
+			screenshot.setAction(new PdfAction("file:///" + imagePath));
+
+			Paragraph exception = new Paragraph(throwable.toString());
+			exception.add(screenshot);
+
+			cell = new PdfPCell(exception);
+			failTable.addCell(cell);
+		} else {
+			failTable.addCell(new PdfPCell(new Paragraph("")));
+		}
+	}
+
+	@Override
+	public void onStart(ITestContext context) {
+		try {
+			File file = new File(REPORT_DIR);
+			if (!file.exists()) {
+				file.mkdir();
+			}
+			PdfWriter.getInstance(document,
+					new FileOutputStream(file + File.separator + "eViewer_HTML5_Test_Report.pdf"));
+		} catch (Exception e) {
+			CustomLogger.logError("onStart: " + e.getMessage());
+		}
+		document.open();
+		try {
+			document.add(new Paragraph("TEST RESULTS", FontFactory.getFont(FontFactory.TIMES_ROMAN, 20, Font.BOLD)));
+			document.add(new Paragraph(new Date().toString()));
+		} catch (DocumentException e) {
+			CustomLogger.logError("onStart: " + e.getMessage());
+		}
+	}
+
+	@Override
+	public void onFinish(ITestContext context) {
+		try {
+			addSystemInfo();
+			addRunStatus(context);
+
+			if (successTable != null) {
+				successTable.setSpacingBefore(10f);
+				document.add(successTable);
+			}
+
+			if (skipTable != null) {
+				skipTable.setSpacingBefore(10f);
+				document.add(skipTable);
+			}
+
+			if (failTable != null) {
+				failTable.setSpacingBefore(10f);
+				document.add(failTable);
+				failTable.setSpacingAfter(10f);
+
+				try {
+					document.add(new Phrase("EXCEPTION SUMMARY:-", defaultFont));
+				} catch (DocumentException e) {
+					CustomLogger.logError("onFinish: " + e.getMessage());
+				}
+
+				Paragraph stackTrace = new Paragraph(getFilteredStackTrace(),
+						FontFactory.getFont(FontFactory.HELVETICA, 10, Font.NORMAL));
+				document.add(stackTrace);
+			}
+		} catch (DocumentException e) {
+			CustomLogger.logError("onFinish: " + e.getMessage());
+		}
+		document.close();
+	}
+
+	private void addSystemInfo() {
+		if (systemInfoTable == null) {
+			systemInfoTable = new PdfPTable(new float[] { 9f, 9f });
+			systemInfoTable.setWidthPercentage(100);
+
+			PdfPCell cell = new PdfPCell(new Phrase("SYSTEM INFO", defaultFont));
+			cell.setHorizontalAlignment(Element.ALIGN_CENTER);
+			cell.setColspan(2);
+			cell.setBackgroundColor(BaseColor.GRAY);
+			systemInfoTable.addCell(cell);
+		}
+
+		PdfPCell cell;
+		try {
+			systemInfoTable.addCell("Host Name");
+			cell = new PdfPCell(new Paragraph(InetAddress.getLocalHost().getHostName()));
+			systemInfoTable.addCell(cell);
+		} catch (Exception e) {
+			systemInfoTable.addCell("");
+		}
+
+		cell = new PdfPCell(new Paragraph(System.getProperty("os.name")));
+		systemInfoTable.addCell("OS Name");
+		systemInfoTable.addCell(cell);
+
+		cell = new PdfPCell(new Paragraph(System.getProperty("java.version")));
+		systemInfoTable.addCell("Java Version");
+		systemInfoTable.addCell(cell);
+
+		cell = new PdfPCell(new Paragraph(getBrowserName().toUpperCase()));
+		systemInfoTable.addCell("Browser Name");
+		systemInfoTable.addCell(cell);
+
+		cell = new PdfPCell(new Paragraph(getBrowserVersion()));
+		systemInfoTable.addCell("Browser Version");
+		systemInfoTable.addCell(cell);
+
+		systemInfoTable.setSpacingBefore(10f);
+		try {
+			document.add(systemInfoTable);
+		} catch (DocumentException e) {
+			CustomLogger.logError("addSystemInfo: " + e.getMessage());
+		}
+	}
+
+	private void addRunStatus(ITestContext context) {
+		if (runStatusTable == null) {
+			runStatusTable = new PdfPTable(new float[] { 9f, 9f });
+			runStatusTable.setWidthPercentage(100);
+
+			PdfPCell cell = new PdfPCell(new Phrase("TEST RUN STATUS", defaultFont));
+			cell.setHorizontalAlignment(Element.ALIGN_CENTER);
+			cell.setColspan(2);
+			cell.setBackgroundColor(BaseColor.ORANGE);
+			runStatusTable.addCell(cell);
+		}
+
+		PdfPCell cell = new PdfPCell(new Paragraph(context.getPassedTests().size() + ""));
+		runStatusTable.addCell("Passed Tests");
+		runStatusTable.addCell(cell);
+
+		cell = new PdfPCell(new Paragraph(context.getSkippedTests().size() + ""));
+		runStatusTable.addCell("Skipped Tests");
+		runStatusTable.addCell(cell);
+
+		cell = new PdfPCell(new Paragraph(context.getFailedTests().size() + ""));
+		runStatusTable.addCell("Failed Tests");
+		runStatusTable.addCell(cell);
+
+		runStatusTable.setSpacingBefore(10f);
+
+		try {
+			document.add(runStatusTable);
+		} catch (DocumentException e) {
+			CustomLogger.logError("addRunStatus: " + e.getMessage());
+		}
+	}
+
+	private List<Object> addTestParameter(ITestResult result) {
+		List<Object> parameters = null;
+		try {
+			parameters = Arrays.asList(result.getParameters());
+		} catch (Exception e) {
+			CustomLogger.logError("addTestParameter: " + e.getMessage());
+		}
+		return parameters;
+	}
+
+	private String getFilteredStackTrace() {
+		StringWriter stringWriter = new StringWriter();
+		PrintWriter printWriter = new PrintWriter(stringWriter);
+		if (throwable != null) {
+			throwable.printStackTrace(printWriter);
+		} else {
+			printWriter.write("");
+		}
+		printWriter.flush();
+
+		StringReader stringReader = new StringReader(stringWriter.getBuffer().toString());
+		BufferedReader bufferedReader = new BufferedReader(stringReader);
+		StringBuffer buf = new StringBuffer();
+
+		try {
+			String line = bufferedReader.readLine();
+			if (line == null) {
+				return "";
+			}
+			buf.append(line).append("\n");
+
+			// the stack trace which are removed
+			int excludedCount = 0;
+			String[] excludedStrings = new String[] { "org.testng", "reflect", "org.apache.maven.surefire" };
+
+			while ((line = bufferedReader.readLine()) != null) {
+				boolean isExcluded = false;
+				for (String excluded : excludedStrings) {
+					if (line.contains(excluded)) {
+						isExcluded = true;
+						excludedCount++;
+						break;
+					}
+				}
+				if (!isExcluded) {
+					buf.append(line).append("\n");
+				}
+			}
+			if (excludedCount > 0) {
+				buf.append("... Removed " + excludedCount + " stack frames");
+			}
+		} catch (Exception e) {
+			CustomLogger.logError("getFilteredStackTrace: " + e.getMessage());
+		}
+		return buf.toString();
+	}
+
+	private String getBrowserName() {
+		try {
+			return remoteWebDriver.getCapabilities().getBrowserName();
+		} catch (Exception e) {
+			CustomLogger.logError("getBrowserName: unable to determine browser name");
+		}
+		return "";
+	}
+
+	private String getBrowserVersion() {
+		try {
+			return remoteWebDriver.getCapabilities().getVersion();
+		} catch (Exception e) {
+			CustomLogger.logError("getBrowserVersion: unable to determine browser version");
+		}
+		return "";
+	}
+
+	private String getCurrentTime() {
+		LocalDateTime time = LocalDateTime.now();
+		return time.format(DateTimeFormatter.ofPattern("dd.MMM.uuu_HH.mm.ss"));
+	}
+
+}

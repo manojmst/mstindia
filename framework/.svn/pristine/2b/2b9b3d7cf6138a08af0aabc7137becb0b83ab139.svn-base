@@ -1,0 +1,16 @@
+package com.eViewer.HTML5.Automation.Framework.Common;
+
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+
+import com.eViewer.HTML5.Automation.Framework.Config.Browser;
+
+@Retention(value = RetentionPolicy.RUNTIME)
+@Target(value = { ElementType.METHOD })
+public @interface DontRunOn {
+
+	Browser[] value() default { Browser.DEFAULT };
+
+}

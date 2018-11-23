@@ -1,0 +1,19 @@
+package com.eViewer.HTML5.Automation.Framework.Common;
+
+public enum FilterBy {
+
+	SELECT_ALL("select all"), PAGE_RANGE("page range"), COMMENT(
+			"comment"), ANNOTATION("annotation"), LAST_COMMENT(
+					"last comment"), BOOKMARK("bookmark");
+
+	private final String value;
+
+	private FilterBy(String value) {
+		this.value = value;
+	}
+
+	public String getValue() {
+		return value;
+	}
+	
+}

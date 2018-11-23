@@ -1,0 +1,15 @@
+package com.eViewer.HTML5.Automation.Framework.Common;
+
+public class TestDataHandler {
+
+	private static int testDataPageCount;
+
+	public static void setFilePageCount(int pageCount) {
+		testDataPageCount = pageCount;
+	}
+
+	public static int getFilePageCount() {
+		return testDataPageCount;
+	}
+	
+}

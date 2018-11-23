@@ -1,0 +1,204 @@
+package com.eViewer.HTML5.Automation.Framework.WebDriverHelper;
+
+import java.awt.Window;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
+
+import javax.imageio.ImageIO;
+
+import org.apache.commons.io.FileUtils;
+import org.openqa.selenium.Dimension;
+import org.openqa.selenium.OutputType;
+import org.openqa.selenium.Point;
+import org.openqa.selenium.TakesScreenshot;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebElement;
+
+import com.assertthat.selenium_shutterbug.core.Shutterbug;
+import com.assertthat.selenium_shutterbug.utils.web.ScrollStrategy;
+import com.eViewer.HTML5.Automation.Framework.Common.CustomLogger;
+import com.eViewer.HTML5.Automation.Framework.Config.Browser;
+import com.eViewer.HTML5.Automation.Framework.Config.Configuration;
+
+public class ImageShooter {
+
+	private final WebDriver driver;
+
+	public ImageShooter(WebDriver driver) {
+		this.driver = driver;
+	}
+
+	public void captureWebPage(String desPath) {
+		saveScreenshot(capturePage(), desPath);
+	}
+
+	/*
+	 * This method is used by old UI for capturing canvas, applicable for vantiv
+	 * and blia
+	 */
+	public void captureWebElement(WebElement element, String desPath) {
+		BufferedImage browserScreenshotImage = null;
+		File elementScreenshot = null;
+		try {
+			Point start = element.getLocation();
+			Dimension size = element.getSize();
+
+			browserScreenshotImage = fileToImage(capturePage());
+			elementScreenshot = cropImage(start, size, browserScreenshotImage);
+
+			saveScreenshot(elementScreenshot, desPath);
+		} finally {
+			elementScreenshot = null;
+			browserScreenshotImage = null;
+		}
+	}
+
+	/*
+	 * This method is used by new UI for capturing canvas, applicable for
+	 * deloitte, anico and internal release
+	 */
+	public void captureWebElement(WebElement element, File iFrameScreenshot, String desPath) {
+		BufferedImage iFrameScreenshotImage = null;
+		File canvasScreenshot = null;
+		try {
+			iFrameScreenshotImage = fileToImage(iFrameScreenshot);
+			canvasScreenshot = cropImage(element.getLocation(), element.getSize(), iFrameScreenshotImage);
+
+			saveScreenshot(canvasScreenshot, desPath);
+		} finally {
+			deleteTempFile(iFrameScreenshot);
+			canvasScreenshot = null;
+			iFrameScreenshotImage = null;
+		}
+	}
+	
+	public void captureWebElement_QMeasure(WebElement element, File iFrameScreenshot, String desPath) {
+		BufferedImage iFrameScreenshotImage = null;
+		File canvasScreenshot = null;
+		try {
+			iFrameScreenshotImage = fileToImage(iFrameScreenshot);
+			canvasScreenshot = cropImage_QMeasure(element.getLocation(), element.getSize(), iFrameScreenshotImage);
+
+			saveScreenshot(canvasScreenshot, desPath);
+		} finally {
+			deleteTempFile(iFrameScreenshot);
+			canvasScreenshot = null;
+			iFrameScreenshotImage = null;
+		}
+	}
+
+	public File captureFrame(WebElement iFrame) {
+		File browserScreenshot = null;
+		try {
+			if (Configuration.getBrowser().equals(Browser.CHROME.name())) {
+				browserScreenshot = capturePageWithShutterBug();
+			} else {
+				browserScreenshot = capturePage();
+			}
+
+			return cropImage(iFrame.getLocation(), iFrame.getSize(), fileToImage(browserScreenshot));
+		} finally {
+			deleteTempFile(browserScreenshot);
+		}
+	}
+
+	private File cropImage(Point start, Dimension size, BufferedImage image) {
+		int width = size.getWidth();
+		int height = size.getHeight();
+		File tempImg = null;
+		try {
+			tempImg = File.createTempFile("screenshot", ".png");
+		} catch (IOException e) {
+			CustomLogger.logError("cropImage: " + e.getMessage());
+		}
+
+		if (width < 1) {
+			width = 1;
+		}
+		if (height < 1) {
+			height = 1;
+		}
+		try {
+			BufferedImage croppedImage = image.getSubimage(start.getX(), start.getY(), width, height);
+			ImageIO.write(croppedImage, "png", tempImg);
+		} catch (IOException e) {
+			CustomLogger.logError("cropImage: " + e.getMessage());
+		}
+		return tempImg;
+	}
+	
+	private File cropImage_QMeasure(Point start, Dimension size, BufferedImage image) {
+		int width = size.getWidth();
+		int height = size.getHeight()-2218;
+		File tempImg = null;
+		try {
+			tempImg = File.createTempFile("screenshot", ".png");
+		} catch (IOException e) {
+			CustomLogger.logError("cropImage: " + e.getMessage());
+		}
+
+		if (width < 1) {
+			width = 1;
+		}
+		if (height < 1) {
+			height = 1;
+		}
+		try {
+			BufferedImage croppedImage = image.getSubimage(start.getX(), start.getY(), width, height);
+			ImageIO.write(croppedImage, "png", tempImg);
+		} catch (IOException e) {
+			CustomLogger.logError("cropImage: " + e.getMessage());
+		}
+		return tempImg;
+	}
+	
+
+	private File capturePage() {
+		return ((TakesScreenshot) driver).getScreenshotAs(OutputType.FILE);
+	}
+
+	private File capturePageWithShutterBug() {
+		File screenshot = null;
+		try {
+			screenshot = File.createTempFile("screenshot", ".png");
+			BufferedImage browserImage = Shutterbug.shootPage(driver, ScrollStrategy.BOTH_DIRECTIONS).getImage();
+			ImageIO.write(browserImage, "png", screenshot);
+		} catch (Exception e) {
+			CustomLogger.logError("capturePageWithShutterBug: " + e.getMessage());
+		}
+		return screenshot;
+	}
+
+	private void saveScreenshot(File srcFile, String desPath) {
+		try {
+			File desFile = new File(desPath);
+			deleteTempFile(desFile);
+			FileUtils.moveFile(srcFile, desFile);
+			CustomLogger.logInfo("saveScreenshot: screenshot saved at [" + desPath + "]");
+		} catch (IOException e) {
+			CustomLogger.logError("saveScreenshot: " + e.getMessage());
+		}
+	}
+
+	private BufferedImage fileToImage(File file) {
+		BufferedImage image = null;
+		try {
+			image = ImageIO.read(file);
+		} catch (IOException e) {
+			CustomLogger.logError("fileToImage: " + e.getMessage());
+		}
+		return image;
+	}
+
+	private void deleteTempFile(File file) {
+		try {
+			if (file.exists()) {
+				file.delete();
+			}
+		} catch (Exception e) {
+			CustomLogger.logError("deleteTempFile: " + e.getMessage());
+		}
+	}
+
+}

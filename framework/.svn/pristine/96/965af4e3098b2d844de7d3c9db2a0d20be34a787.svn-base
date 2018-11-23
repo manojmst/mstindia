@@ -1,0 +1,29 @@
+package com.eViewer.HTML5.Automation.Framework.Common;
+
+import org.openqa.selenium.remote.RemoteWebDriver;
+
+import com.eViewer.HTML5.Automation.Framework.Config.NewDriverProvider;
+
+public class BrowserInfo {
+
+	private static final RemoteWebDriver driver = (RemoteWebDriver) NewDriverProvider.getWebDriver();
+
+	public static String getBrowserName() {
+		try {
+			return driver.getCapabilities().getBrowserName();
+		} catch (Exception e) {
+			CustomLogger.logError("getBrowserName: unable to determine browser name");
+		}
+		return "";
+	}
+
+	public static String getBrowserVersion() {
+		try {
+			return driver.getCapabilities().getVersion();
+		} catch (Exception e) {
+			CustomLogger.logError("getBrowserVersion: unable to determine browser version");
+		}
+		return "";
+	}
+
+}

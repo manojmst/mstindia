@@ -1,0 +1,122 @@
+package com.eViewer.HTML5.Automation.Framework.Config;
+
+import java.net.URL;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
+
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.chrome.ChromeDriver;
+import org.openqa.selenium.chrome.ChromeOptions;
+import org.openqa.selenium.firefox.FirefoxDriver;
+import org.openqa.selenium.ie.InternetExplorerDriver;
+import org.openqa.selenium.remote.DesiredCapabilities;
+import org.openqa.selenium.remote.RemoteWebDriver;
+
+import com.eViewer.HTML5.Automation.Framework.Common.CustomLogger;
+
+public class NewDriverProvider {
+
+	private static WebDriver driver;
+	private static DesiredCapabilities capabilities;
+
+	public static WebDriver getWebDriver() {
+		return driver;
+	}
+
+	public static WebDriver createWebDriverInstance() throws Exception {
+		try {
+			String browser = Configuration.getBrowser();
+			switch (Browser.valueOf(browser)) {
+				case IE :
+
+					capabilities = DesiredCapabilities.internetExplorer();
+
+					driver = new InternetExplorerDriver(capabilities);
+					break;
+
+				case FIREFOX :
+
+					capabilities = DesiredCapabilities.firefox();
+
+					// ProfilesIni profile = new ProfilesIni();
+					// FirefoxProfile firefoxProfile = profile
+					// .getProfile("default");
+					// firefoxProfile.setPreference("browser.download.folderList",
+					// 2);
+					// firefoxProfile.setPreference("browser.download.dir",
+					// Configuration.getDownloadDir());
+					//
+					// // MARIONETTE is True By Default
+					// capabilities.setCapability(FirefoxDriver.MARIONETTE,
+					// true);
+					// capabilities.setCapability(FirefoxDriver.PROFILE,
+					// firefoxProfile);
+
+					driver = new FirefoxDriver(capabilities);
+					break;
+
+				case CHROME :
+
+					capabilities = DesiredCapabilities.chrome();
+					ChromeOptions chromeOptions = new ChromeOptions();
+					Map<String, Object> prefs = new HashMap<String, Object>();
+
+					prefs.put("profile.default_content_settings.popups", 0);
+					prefs.put("download.default_directory",
+							Configuration.getDownloadDir());
+
+					chromeOptions.addArguments("--disable-extensions");
+					chromeOptions.setExperimentalOption("prefs", prefs);
+
+					capabilities.setCapability(ChromeOptions.CAPABILITY,
+							chromeOptions);
+
+					driver = new ChromeDriver(capabilities);
+					break;
+
+				case REMOTE :
+
+					if (Configuration.getRemoteBrowser()
+							.equals(Browser.CHROME.name())) {
+						capabilities = DesiredCapabilities.chrome();
+					} else if (Configuration.getRemoteBrowser()
+							.equals(Browser.FIREFOX.name())) {
+						capabilities = DesiredCapabilities.firefox();
+					}
+
+					try {
+						driver = new RemoteWebDriver(
+								new URL(Configuration.getHubURL()),
+								capabilities);
+					} catch (Exception e) {
+						CustomLogger.logError(
+								"createWebDriverInstance: RemoteWebDriver "
+										+ e.getMessage());
+					}
+					break;
+
+				default :
+
+					CustomLogger.logError(
+							"createWebDriverInstance: provided driver ["
+									+ browser + "] is not supported");
+					throw new Exception(
+							"createWebDriverInstance: provided driver ["
+									+ browser + "] is not supported");
+			}
+
+			CustomLogger.logInfo("createWebDriverInstance: [" + browser
+					+ "] driver started successfully");
+			driver.manage().timeouts().implicitlyWait(
+					Configuration.getImplicitWaitTimeout(), TimeUnit.SECONDS);
+			driver.manage().timeouts().setScriptTimeout(
+					Configuration.getImplicitWaitTimeout(), TimeUnit.SECONDS);
+			driver.manage().deleteAllCookies();
+		} catch (Exception e) {
+			CustomLogger.logError("createWebDriverInstance: " + e.getMessage());
+		}
+		return driver;
+	}
+	
+}
